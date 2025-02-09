@@ -10,13 +10,19 @@ export const auth = async (
   res: Response,
   next: NextFunction
 ) => {
-  try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-    if (!token) throw new Error();
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(401).json({ message: "Please authenticate" });
+  const token = req.header("Authorization")?.replace("Bearer ", "");
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+      req.user = decoded;
+    } catch (error) {
+      // If token is invalid, assign default guest role
+      req.user = { role: "guest", userId: null };
+    }
+  } else {
+    // No token provided - assign default guest role
+    req.user = { role: "guest", userId: null };
   }
+  next();
 };
