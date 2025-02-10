@@ -8,6 +8,18 @@ export const uploadImage = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
+    // Verify user authentication
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    // Check file size
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (req.file.size > maxSize) {
+      fs.unlinkSync(req.file.path); // Clean up
+      return res.status(400).json({ message: "File too large" });
+    }
+
     // Upload the file from the temporary path
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: "swissmote",

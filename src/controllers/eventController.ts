@@ -11,11 +11,19 @@ export const createEvent = async (
       res.status(401).json({ message: "Not authenticated" });
       return;
     }
+
     if (req.user.role !== "admin") {
       res.status(403).json({ message: "Only admins can create events" });
       return;
     }
+
     const { title, description, date, location, imageUrl, category } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !date || !location || !category) {
+      res.status(400).json({ message: "Missing required fields" });
+      return;
+    }
 
     const event = new Event({
       title,
@@ -24,15 +32,23 @@ export const createEvent = async (
       location,
       imageUrl,
       category,
-      organizer: req.user.userId, // still record who created it
+      organizer: req.user.userId,
+      seatsTotal: req.body.seatsTotal || 100, // Default value
+      bookedSeats: 0,
     });
+
     await event.save();
 
+    // Emit socket event
     getIO().emit("eventCreated", event);
 
     res.status(201).json(event);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("Create event error:", error);
+    res.status(500).json({
+      message: "Server error",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 };
 
