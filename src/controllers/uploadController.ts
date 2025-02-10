@@ -1,25 +1,37 @@
-// language: ts
 import { Request, Response } from "express";
-import cloudinary from "../config/cloudinary";
+import { v2 as cloudinary } from "cloudinary";
+import fs from "fs";
 
-export const uploadImage = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const uploadImage = async (req: Request, res: Response) => {
   try {
-    // Ensure a file is provided
     if (!req.file) {
-      res.status(400).json({ message: "No file uploaded" });
-      return;
+      return res.status(400).json({ message: "No file uploaded" });
     }
 
-    // Upload the file to Cloudinary; using the local file path provided by Multer.
+    // Upload the file from the temporary path
     const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "events", // optional: organize uploads in a folder
+      folder: "swissmote",
+      resource_type: "auto",
     });
 
-    res.status(200).json({ url: result.secure_url });
+    // Delete the temporary file
+    fs.unlinkSync(req.file.path);
+
+    return res.status(200).json({
+      url: result.secure_url,
+      public_id: result.public_id
+    });
+
   } catch (error) {
-    res.status(500).json({ message: "Image upload failed", error });
+    // Clean up temporary file if it exists
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    console.error("Upload error:", error);
+    return res.status(500).json({
+      message: "Upload failed",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 };

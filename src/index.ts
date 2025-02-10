@@ -10,10 +10,11 @@ import { initSocket } from "./socket";
 import authRoutes from "./routes/auth";
 import eventRoutes from "./routes/events";
 import uploadRoutes from "./routes/upload";
+import cloudinary from "./config/cloudinary";
 
 // Load environment variables
 dotenv.config();
-
+cloudinary;
 const app = express();
 
 // Middleware
