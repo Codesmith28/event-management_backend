@@ -142,10 +142,42 @@ export const deleteEvent = async (
 
 export const getEvents = async (req: Request, res: Response): Promise<void> => {
   try {
-    const events = await Event.find().populate("organizer", "name email");
+    const { title, category, startDate, endDate } = req.query;
+    
+    const query: any = {};
+
+    // Title filter - case-insensitive partial match
+    if (title) {
+      query.title = { $regex: new RegExp(title as string, 'i') };
+    }
+
+    // Category filter - exact match
+    if (category) {
+      query.category = category;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) {
+        query.date.$gte = new Date(startDate as string);
+      }
+      if (endDate) {
+        const endDateTime = new Date(endDate as string);
+        endDateTime.setHours(23, 59, 59, 999); // Include the entire end date
+        query.date.$lte = endDateTime;
+      }
+    }
+
+    const events = await Event.find(query)
+      .sort({ date: 1, time: 1 })
+      .populate('organizer', 'name email')
+      .exec();
+
     res.json(events);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error('Get events error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
