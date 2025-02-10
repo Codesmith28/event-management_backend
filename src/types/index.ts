@@ -1,3 +1,5 @@
+import { Types } from "mongoose";
+
 export interface IUser {
   _id: string;
   name: string;
@@ -13,6 +15,7 @@ export interface IEvent {
   title: string;
   description: string;
   date: Date;
+  time: string;
   location: string;
   imageUrl: string;
   category: string;

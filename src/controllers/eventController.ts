@@ -18,10 +18,11 @@ export const createEvent = async (
       return;
     }
 
-    const { title, description, date, location, imageUrl, category } = req.body;
+    const { title, description, date, time, location, imageUrl, category } =
+      req.body;
 
     // Validate required fields
-    if (!title || !description || !date || !location || !category) {
+    if (!title || !description || !date || !time || !location || !category) {
       res.status(400).json({ message: "Missing required fields" });
       return;
     }
@@ -30,6 +31,7 @@ export const createEvent = async (
       title,
       description,
       date,
+      time,
       location,
       imageUrl,
       category,
