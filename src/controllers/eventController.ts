@@ -195,34 +195,32 @@ export const bookEvent = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Check if seats are available
+    const currentAttendees = event.attendees.length;
+    if (currentAttendees >= event.seatsTotal) {
+      res.status(400).json({ message: "No seats available" });
+      return;
+    }
+
     // Add user to attendees
     event.attendees.push(new Types.ObjectId(req.user.userId));
     await event.save();
 
-    // Calculate updated stats using aggregation
-    const stats = await Event.aggregate([
-      { $match: { _id: new Types.ObjectId(req.params.id) } },
-      {
-        $project: {
-          totalAttendees: { $size: "$attendees" },
-          seatsAvailable: {
-            $subtract: ["$seatsTotal", { $size: "$attendees" }],
-          },
-        },
-      },
-    ]);
+    // Calculate updated stats
+    const totalAttendees = event.attendees.length;
+    const seatsAvailable = event.seatsTotal - totalAttendees;
 
     // Emit socket event with updated stats
     getIO().emit("attendeeUpdate", {
       eventId: event._id,
-      count: stats[0].totalAttendees,
-      seatsAvailable: stats[0].seatsAvailable,
+      count: totalAttendees,
+      seatsAvailable: seatsAvailable,
     });
 
     res.status(200).json({
       message: "Event booked successfully",
-      attendees: stats[0].totalAttendees,
-      seatsAvailable: stats[0].seatsAvailable,
+      attendees: totalAttendees,
+      seatsAvailable: seatsAvailable,
     });
   } catch (error) {
     console.error("Booking error:", error);
@@ -253,29 +251,20 @@ export const unbookEvent = async (
     await event.save();
 
     // Calculate updated stats
-    const stats = await Event.aggregate([
-      { $match: { _id: new Types.ObjectId(req.params.id) } },
-      {
-        $project: {
-          totalAttendees: { $size: "$attendees" },
-          seatsAvailable: {
-            $subtract: ["$seatsTotal", { $size: "$attendees" }],
-          },
-        },
-      },
-    ]);
+    const totalAttendees = event.attendees.length;
+    const seatsAvailable = event.seatsTotal - totalAttendees;
 
     // Emit socket event
     getIO().emit("attendeeUpdate", {
       eventId: event._id,
-      count: stats[0].totalAttendees,
-      seatsAvailable: stats[0].seatsAvailable,
+      count: totalAttendees,
+      seatsAvailable: seatsAvailable,
     });
 
     res.status(200).json({
       message: "Event unbooked successfully",
-      attendees: stats[0].totalAttendees,
-      seatsAvailable: stats[0].seatsAvailable,
+      attendees: totalAttendees,
+      seatsAvailable: seatsAvailable,
     });
   } catch (error) {
     console.error("Unbooking error:", error);
