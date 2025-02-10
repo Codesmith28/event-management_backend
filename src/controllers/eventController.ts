@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Event from "../models/Event";
 import { getIO } from "../socket";
+import { Types } from "mongoose";
 
 export const createEvent = async (
   req: Request,
@@ -167,5 +168,115 @@ export const bookSeat = async (req: Request, res: Response): Promise<void> => {
     res.status(200).json({ message: "Seat booked", event });
   } catch (error) {
     res.status(500).json({ message: "Server error", error });
+  }
+};
+
+export const bookEvent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      res.status(404).json({ message: "Event not found" });
+      return;
+    }
+
+    // Check if user already booked
+    const isBooked = event.attendees
+      .map((id) => id.toString())
+      .includes(req.user.userId);
+    if (isBooked) {
+      res.status(400).json({ message: "Already booked this event" });
+      return;
+    }
+
+    // Add user to attendees
+    event.attendees.push(new Types.ObjectId(req.user.userId));
+    await event.save();
+
+    // Calculate updated stats using aggregation
+    const stats = await Event.aggregate([
+      { $match: { _id: new Types.ObjectId(req.params.id) } },
+      {
+        $project: {
+          totalAttendees: { $size: "$attendees" },
+          seatsAvailable: {
+            $subtract: ["$seatsTotal", { $size: "$attendees" }],
+          },
+        },
+      },
+    ]);
+
+    // Emit socket event with updated stats
+    getIO().emit("attendeeUpdate", {
+      eventId: event._id,
+      count: stats[0].totalAttendees,
+      seatsAvailable: stats[0].seatsAvailable,
+    });
+
+    res.status(200).json({
+      message: "Event booked successfully",
+      attendees: stats[0].totalAttendees,
+      seatsAvailable: stats[0].seatsAvailable,
+    });
+  } catch (error) {
+    console.error("Booking error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const unbookEvent = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      res.status(404).json({ message: "Event not found" });
+      return;
+    }
+
+    // Remove user from attendees
+    event.attendees = event.attendees.filter(
+      (id) => id.toString() !== req.user?.userId
+    );
+    await event.save();
+
+    // Calculate updated stats
+    const stats = await Event.aggregate([
+      { $match: { _id: new Types.ObjectId(req.params.id) } },
+      {
+        $project: {
+          totalAttendees: { $size: "$attendees" },
+          seatsAvailable: {
+            $subtract: ["$seatsTotal", { $size: "$attendees" }],
+          },
+        },
+      },
+    ]);
+
+    // Emit socket event
+    getIO().emit("attendeeUpdate", {
+      eventId: event._id,
+      count: stats[0].totalAttendees,
+      seatsAvailable: stats[0].seatsAvailable,
+    });
+
+    res.status(200).json({
+      message: "Event unbooked successfully",
+      attendees: stats[0].totalAttendees,
+      seatsAvailable: stats[0].seatsAvailable,
+    });
+  } catch (error) {
+    console.error("Unbooking error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };

@@ -17,7 +17,7 @@ export interface IEvent {
   imageUrl: string;
   category: string;
   organizer: IUser | string;
-  attendees: (IUser | string)[];
+  attendees: Types.ObjectId[];
   seatsTotal: number;
   bookedSeats: number;
   createdAt: Date;

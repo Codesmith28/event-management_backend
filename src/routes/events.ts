@@ -6,6 +6,8 @@ import {
   updateEvent,
   deleteEvent,
   bookSeat,
+  bookEvent,
+  unbookEvent,
 } from "../controllers/eventController";
 import { auth } from "../middleware/auth";
 
@@ -16,6 +18,7 @@ router.get("/:id", getEvent);
 router.post("/", auth, createEvent);
 router.put("/:id", auth, updateEvent);
 router.delete("/:id", auth, deleteEvent);
-router.post("/:id/book", auth, bookSeat);
+router.post("/:id/book", auth, bookEvent);
+router.delete("/:id/book", auth, unbookEvent);
 
 export default router;
