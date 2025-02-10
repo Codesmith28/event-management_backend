@@ -73,20 +73,41 @@ export const updateEvent = async (
       res.status(404).json({ message: "Event not found" });
       return;
     }
-    const { title, description, date, location, imageUrl, category } = req.body;
-    event.title = title || event.title;
-    event.description = description || event.description;
-    event.date = date || event.date;
-    event.location = location || event.location;
-    event.imageUrl = imageUrl || event.imageUrl;
-    event.category = category || event.category;
+
+    const {
+      title,
+      description,
+      date,
+      time,
+      location,
+      imageUrl,
+      category,
+      seatsTotal
+    } = req.body;
+
+    // Update all fields if provided
+    if (title) event.title = title;
+    if (description) event.description = description;
+    if (date) event.date = new Date(date);
+    if (time) event.time = time;
+    if (location) event.location = location;
+    if (imageUrl) event.imageUrl = imageUrl;
+    if (category) event.category = category;
+    if (seatsTotal && seatsTotal >= event.attendees.length) {
+      event.seatsTotal = seatsTotal;
+    }
 
     await event.save();
 
+    // Populate organizer details before sending
+    await event.populate("organizer", "name email");
+
+    // Emit socket event with the updated event
     getIO().emit("eventUpdated", event);
 
     res.json(event);
   } catch (error) {
+    console.error("Update event error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -268,6 +289,51 @@ export const unbookEvent = async (
     });
   } catch (error) {
     console.error("Unbooking error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const removeAttendee = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    if (req.user.role !== "admin") {
+      res.status(403).json({ message: "Admin access required" });
+      return;
+    }
+
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      res.status(404).json({ message: "Event not found" });
+      return;
+    }
+
+    const userId = req.params.userId;
+    event.attendees = event.attendees.filter(
+      (id) => id.toString() !== userId
+    );
+    await event.save();
+
+    // Emit socket event with updated stats
+    getIO().emit("attendeeUpdate", {
+      eventId: event._id,
+      count: event.attendees.length,
+      seatsAvailable: event.seatsTotal - event.attendees.length,
+    });
+
+    res.status(200).json({
+      message: "Attendee removed successfully",
+      attendees: event.attendees.length,
+      seatsAvailable: event.seatsTotal - event.attendees.length,
+    });
+  } catch (error) {
+    console.error("Remove attendee error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

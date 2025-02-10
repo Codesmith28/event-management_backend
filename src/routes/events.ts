@@ -8,6 +8,7 @@ import {
   bookSeat,
   bookEvent,
   unbookEvent,
+  removeAttendee,
 } from "../controllers/eventController";
 import { auth } from "../middleware/auth";
 
@@ -20,5 +21,6 @@ router.put("/:id", auth, updateEvent);
 router.delete("/:id", auth, deleteEvent);
 router.post("/:id/book", auth, bookEvent);
 router.delete("/:id/book", auth, unbookEvent);
+router.delete("/:id/attendees/:userId", auth, removeAttendee);
 
 export default router;
