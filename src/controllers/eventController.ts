@@ -148,11 +148,11 @@ export const getEvents = async (req: Request, res: Response): Promise<void> => {
 
     // Title filter - case-insensitive partial match
     if (title) {
-      query.title = { $regex: new RegExp(title as string, 'i') };
+      query.title = { $regex: new RegExp(String(title), 'i') };
     }
 
     // Category filter - exact match
-    if (category) {
+    if (category && category !== 'all') {
       query.category = category;
     }
 
@@ -160,17 +160,17 @@ export const getEvents = async (req: Request, res: Response): Promise<void> => {
     if (startDate || endDate) {
       query.date = {};
       if (startDate) {
-        query.date.$gte = new Date(startDate as string);
+        query.date.$gte = new Date(String(startDate));
       }
       if (endDate) {
-        const endDateTime = new Date(endDate as string);
+        const endDateTime = new Date(String(endDate));
         endDateTime.setHours(23, 59, 59, 999); // Include the entire end date
         query.date.$lte = endDateTime;
       }
     }
 
     const events = await Event.find(query)
-      .sort({ date: 1, time: 1 })
+      .sort({ date: 1 })
       .populate('organizer', 'name email')
       .exec();
 
