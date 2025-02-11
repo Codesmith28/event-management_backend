@@ -5,7 +5,9 @@ let io: Server;
 export const initSocket = (server: any): Server => {
   io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: ["https://swissmote-events.vercel.app", "http://localhost:3000"],
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      credentials: true,
     },
   });
 
