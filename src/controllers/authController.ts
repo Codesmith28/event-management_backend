@@ -12,11 +12,16 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     const hashedPassword = await bcrypt.hash(password, 10);
-    user = new User({ name, email, password: hashedPassword });
+    user = new User({ 
+      name, 
+      email, 
+      password: hashedPassword,
+      role: "user" // Explicitly set role to "user"
+    });
     await user.save();
 
     const token = jwt.sign(
-      { userId: user._id, role: user.role }, // include role in payload
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET!,
       { expiresIn: "24h" }
     );
